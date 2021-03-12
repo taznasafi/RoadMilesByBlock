@@ -1,0 +1,9 @@
+/data/
+/data1/
+/error_logger.log
+/logger.log
+/bin/__pycache__/
+/RoadMilesByBlock/__pychache__/
+/__pycache__/
+/my_paths.py
+/.idea/
