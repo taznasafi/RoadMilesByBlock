@@ -39,6 +39,20 @@ class RoadMaker:
 
     @logger.arcpy_exception(logger.create_error_logger())
     @logger.event_logger(logger.create_logger())
+    def shp_to_gdb(self):
+
+        shp_path_dict = get_path.pathFinder.get_shapefile_path_walk_dict(self.in_path)
+
+        for shp_path, shp_name_list in shp_path_dict.items():
+
+            if not arcpy.Exists(os.path.join(self.out_gdb, shp_name_list[0].strip(".zip"))):
+                print(shp_name_list[0])
+                arcpy.FeatureClassToFeatureClass_conversion(in_features=os.path.join(shp_path, shp_name_list[0]), out_path=self.out_gdb, out_name= shp_name_list[0].stri(".zip"))
+
+
+
+    @logger.arcpy_exception(logger.create_error_logger())
+    @logger.event_logger(logger.create_logger())
     def extract_data_from_shapefiles(self, faces_path=my_paths.faces_zip_path):
         """
         :param faces_path: this the path to the root folder of the faces zipfile.
@@ -54,10 +68,10 @@ class RoadMaker:
         for shp_path, shp_name in shp_path_list.items():
             # loop over the shapefile, extract the attribute table from faces id and put it pandas dataframe
             arr = arcpy.da.TableToNumPyArray(os.path.join(shp_path, shp_name[0]),
-                                             ("TFID", "STATEFP10", "COUNTYFP10", "TRACTCE10", 'BLOCKCE10'))
+                                             ("TFID", "STATEFP", "COUNTYFP", "TRACTCE", 'BLOCKCE'))
             df = pd.DataFrame(arr)
 
-            df['geoid10'] = df["STATEFP10"] + df["COUNTYFP10"] + df["TRACTCE10"] + df['BLOCKCE10']
+            df['geoid'] = df["STATEFP"] + df["COUNTYFP"] + df["TRACTCE"] + df['BLOCKCE']
 
             temp_data_frame_list.append(df)
 
@@ -108,17 +122,20 @@ class RoadMaker:
 
     @logger.arcpy_exception(logger.create_error_logger())
     @logger.event_logger(logger.create_logger())
-    def roads_from_edges(self, cal_fields=False, state=None, gdb_root_path=my_paths.faces_gdb_by_state_base_path):
+    def shared_roads_from_edges(self, cal_shared_road_miles=False, state=None, gdb_root_path=my_paths.edges_gdb_by_state_base_path):
         """
 
-        :param cal_fields: this is a switch to turn on and off calculating fields.
+        :param cal_shared_road_miles: this is a switch to turn on and off calculating fields.
         :param state: State wildcard passed for parallel processing.
         :param gdb_root_path: please provide path to gdb root folder.
 
         This process creates roads from edges from state gdb, make sure to provide gdb from census.
         """
+        print(gdb_root_path)
 
-        arcpy.Delete_management('temp_fc')
+        temp_road = "temp_road"
+
+        arcpy.Delete_management(temp_road)
 
         # get a list of gdb
         gdb_path_list = get_path.pathFinder(env=gdb_root_path).gdb_path_grabber(
@@ -131,47 +148,59 @@ class RoadMaker:
             fc_list = get_path.pathFinder(env=state_path).get_path_for_all_feature_from_gdb(type='Polyline')
 
             # make a copy of the feature with where clause
-            arcpy.MakeFeatureLayer_management(in_features=fc_list[0], out_layer="temp_fc",
-                                              where_clause=""" MTFCC LIKE 'S%' """)
+            arcpy.MakeFeatureLayer_management(in_features=fc_list[0], out_layer=temp_road,
+                                              where_clause="""  MTFCC = 'S1100' OR 
+                                                                MTFCC = 'S1200' OR 
+                                                                MTFCC = 'S1400' OR 
+                                                                MTFCC = 'S1500' OR 
+                                                                MTFCC = 'S1630' OR 
+                                                                MTFCC = 'S1640' OR 
+                                                                MTFCC = 'S1710' OR 
+                                                                MTFCC = 'S1720' OR 
+                                                                MTFCC = 'S1730' OR 
+                                                                MTFCC = 'S1740' OR 
+                                                                MTFCC = 'S1780' OR 
+                                                                MTFCC = 'S1820' OR 
+                                                                MTFCC = 'S1830' """)
 
             # make a field called road_length, shared_block_roads
-            if cal_fields:
-                RoadMaker.add_field(self, in_fc='temp_fc', field_name='shared_block_roads', field_type='SHORT')
-                RoadMaker.add_field(self, in_fc='temp_fc', field_name='road_length', field_type='DOUBLE')
+            if cal_shared_road_miles:
+                RoadMaker.add_field(self, in_fc=temp_road, field_name='shared_block_roads', field_type='SHORT')
+                RoadMaker.add_field(self, in_fc=temp_road, field_name='road_length', field_type='DOUBLE')
 
                 # calculate geodesic length
-                RoadMaker.calculate_field(self, in_fc='temp_fc', in_field='road_length',
+                RoadMaker.calculate_field(self, in_fc=temp_road, in_field='road_length',
                                           expression="!shape.geodesicLength@METERS!")
 
                 # select roads that are shared among blocks and put 1 as shared road mile
-                arcpy.SelectLayerByLocation_management(in_layer='temp_fc', overlap_type="SHARE_A_LINE_SEGMENT_WITH",
-                                                       select_features=my_paths.tl_2019_blocks,
+                arcpy.SelectLayerByLocation_management(in_layer=temp_road, overlap_type="SHARE_A_LINE_SEGMENT_WITH",
+                                                       select_features=my_paths.tl_2020_blocks,
                                                        selection_type='NEW_SELECTION')
 
-                RoadMaker.calculate_field(self, in_fc='temp_fc', in_field='shared_block_roads',
+                RoadMaker.calculate_field(self, in_fc=temp_road, in_field='shared_block_roads',
                                           expression=1)
 
-                arcpy.SelectLayerByAttribute_management(in_layer_or_view='temp_fc', selection_type="SWITCH_SELECTION")
+                arcpy.SelectLayerByAttribute_management(in_layer_or_view=temp_road, selection_type="SWITCH_SELECTION")
 
-                RoadMaker.calculate_field(self, in_fc='temp_fc', in_field='shared_block_roads',
+                RoadMaker.calculate_field(self, in_fc=temp_road, in_field='shared_block_roads',
                                           expression=0)
 
-                arcpy.SelectLayerByAttribute_management('temp_fc', "CLEAR_SELECTION")
+                arcpy.SelectLayerByAttribute_management(temp_road, "CLEAR_SELECTION")
 
             output = os.path.join(self.out_gdb, 'shared_roadMiles_{}'.format(state))
 
             if not arcpy.Exists(output):
-                arcpy.CopyFeatures_management(in_features='temp_fc', out_feature_class=output)
+                arcpy.CopyFeatures_management(in_features=temp_road, out_feature_class=output)
                 arcpy.GetMessages(0)
                 RoadMaker.gdb_output_dic['tl_2019_roads_from_edges'].append(output)
-                arcpy.Delete_management('temp_fc')
+                arcpy.Delete_management(temp_road)
             else:
                 RoadMaker.gdb_output_dic['tl_2019_roads_from_edges'].append(output)
-                arcpy.Delete_management('temp_fc')
+                arcpy.Delete_management(temp_road)
 
     @logger.arcpy_exception(logger.create_error_logger())
     @logger.event_logger(logger.create_logger())
-    def make_table(self, in_fc, fields, shared):
+    def make_shared_road_table(self, in_fc, fields, shared):
         column_data = defaultdict(list)
         # print(in_fc)
 
@@ -209,9 +238,9 @@ class RoadMaker:
             R_fields = ['TFIDR', 'MTFCC', "shared_block_roads", 'road_length']
             M_fields = ['TFIDR', 'MTFCC', "shared_block_roads", 'road_length']
 
-            L_df = RoadMaker.make_table(self, in_fc=fc, fields=L_fields, shared=1)
-            R_df = RoadMaker.make_table(self, in_fc=fc, fields=R_fields, shared=1)
-            M_df = RoadMaker.make_table(self, in_fc=fc, fields=M_fields, shared=0)
+            L_df = RoadMaker.make_shared_road_table(self, in_fc=fc, fields=L_fields, shared=1)
+            R_df = RoadMaker.make_shared_road_table(self, in_fc=fc, fields=R_fields, shared=1)
+            M_df = RoadMaker.make_shared_road_table(self, in_fc=fc, fields=M_fields, shared=0)
 
             # def prepare_df(in_df_list=[L_df, R_df, M_df], group_by_fields=None):
             #     procesed_df = {}
@@ -226,7 +255,7 @@ class RoadMaker:
             fc_df_R_df = pd.merge(left=faces_df, left_on="TFID", right=R_df, right_on='TFIDR', how='inner')
             fc_df_M_df = pd.merge(left=faces_df, left_on="TFID", right=M_df, right_on='TFIDR', how='inner')
 
-            # delete faces_data frame
+            # delete faces_data frame from memory
             del faces_df
 
             fc_df_L_df = fc_df_L_df[fc_df_L_df.STATEFP10 == "{}".format(state)]

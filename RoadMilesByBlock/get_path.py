@@ -100,6 +100,13 @@ class pathFinder:
 
 
     @classmethod
+    def make_state_fips_name_dict(cls):
+
+        Fips_table_path = r"D:\FCC_GIS_Projects\MFII\csv\state FiPS.txt"
+        data = pd.read_csv(Fips_table_path, sep='|',dtype=object)
+        return data.to_dict(orient="records")
+
+    @classmethod
     def query_provider_by_FIPS(cls, path, fips):
         import pandas as pd
         df = pd.read_csv(path)
