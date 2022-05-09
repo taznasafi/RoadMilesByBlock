@@ -11,4 +11,4 @@ def make_roads(run=False, calculate_fields=False, state_fips=None, gdb_name=None
     roads.create_gdb()
     if run:
 
-        roads.shared_roads_from_edges(state=state_fips, cal_shared_road_miles=calculate_fields)
+        roads.shared_roads_from_edges(state=state_fips, cal_road_miles=calculate_fields)

@@ -22,6 +22,6 @@ if not os.path.exists('my_paths.py'):
     faces_zip_path = r"" \n
     faces_gdb_by_state_base_path = r"" \n
 
-    tl_2019_blocks = r""
+    tl_2020_blocks = r""
     """)
     exit()

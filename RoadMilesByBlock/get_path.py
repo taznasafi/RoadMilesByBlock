@@ -20,6 +20,7 @@ class pathFinder:
         for root, dirs, files in os.walk(self.env):
             for file in fnmatch.filter(files, wildcard):
                 parsed_path_list.append(os.path.join(root, file))
+        return list(parsed_path_list)
 
     def gdb_path_grabber(self, wildcard=None):
         parsed_path_list = []
@@ -152,9 +153,12 @@ class pathFinder:
 
     @classmethod
     def filter_List_of_shapefiles_paths_with_wildcard(cls, path_link_list, wildcard):
+        sorted_list = []
         for path_link in path_link_list:
             if fnmatch.fnmatch(os.path.basename(path_link), wildcard + ".shp"):
-                return path_link
+                sorted_list.append(path_link)
+        print("found {} number of files".format(len(sorted_list)))
+        return list(sorted_list)
 
 
 
