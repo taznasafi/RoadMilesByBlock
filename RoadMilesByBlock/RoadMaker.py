@@ -432,5 +432,5 @@ class RoadMaker:
             out_dir = os.path.join(self.output_folder, 'all_blocks_with_road_miles', 'csv')
             if not os.path.exists(out_dir):
                 os.makedirs(out_dir)
-            df_merge.to_csv(os.path.join(out_dir, "all_blocks_with_road_miles_{}.csv".format(state)))
+            df_merge.to_csv(os.path.join(out_dir, "all_blocks_with_road_miles_{}.csv".format(state)), index=False)
             print(out_dir, "road_miles_{}.csv".format(state))
