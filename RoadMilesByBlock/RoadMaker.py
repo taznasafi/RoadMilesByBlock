@@ -157,6 +157,15 @@ class RoadMaker:
             print('merging all of {} counties into one fc'.format(len(filtered_state_county_list)))
             temp_name = arcpy.Merge_management(inputs=filtered_state_county_list, output="in_memory/merged_edges")
 
+            # Replace a layer/table view name with a path to a dataset (which can be a layer file) or create the layer/table view within the script
+            # The following inputs are layers or table views: "road_miles_12"
+
+            # since we extract the edges from counties, there exits identical roads on the edges. to account for that we have to delete identical features
+            print("********* Deleting Identical roads on the county line ****************************")
+            arcpy.DeleteIdentical_management(in_dataset=temp_name,
+                                             fields=["TLID", "TFIDL", "TFIDR", "MTFCC", "FULLNAME", 'Shape'],
+                                             xy_tolerance="", z_tolerance="0")
+
             a = arcpy.FeatureClassToFeatureClass_conversion(in_features=temp_name,
                                                             out_name='road_miles_{}'.format(state),
                                                             out_path=self.out_gdb,
